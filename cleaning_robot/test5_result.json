@@ -1,0 +1,15 @@
+{
+  "visited": [
+    {
+      "X": 1,
+      "Y": 2
+    }
+  ],
+  "cleaned": null,
+  "final": {
+    "X": 1,
+    "Y": 2,
+    "facing": "E"
+  },
+  "battery": 0
+}
