@@ -16,7 +16,8 @@
 using namespace std;
 using namespace nlohmann;
 
-// A workaround to give to use fifo_map as map, we are just ignoring the 'less' compare
+// A workaround to give to use fifo_map as map, just ignoring the 'less' compare
+// to stop the json library from sorting the objects ascendingly
 template<class K, class V, class dummy_compare, class A>
 using my_workaround_fifo_map = fifo_map<K, V, fifo_map_compare<K>, A>;
 using my_json = basic_json<my_workaround_fifo_map>;
@@ -25,25 +26,24 @@ enum status {
 	NO_BATTERY,
 	BLOCKED
 };
+//the robot itself
 class Robot {
-private:
-	char orientation;
+private:	
 	pair<int, int>position;
-	vector<char> orientations;
+	vector<char> orientations; // has all orientations
 	int battery;
-	int orientationIndex;
+	int orientationIndex; // not to search in the orientation vector everytime
 public:
 	Robot(int positionX, int positionY, char orient, int batterylevel)
 	{
-		position = make_pair(positionX, positionY);
-		orientation = orient;
+		position = make_pair(positionX, positionY);		
 		orientations = { 'N','E','S','W' };
-		orientationIndex = find(orientations.begin(), orientations.end(), orientation) - orientations.begin();
+		orientationIndex = find(orientations.begin(), orientations.end(), orient) - orientations.begin();
 		battery = batterylevel;
-	}
+	}		
 	bool turnLeft() {
 		if (getBattery() - 1 < 0)
-			return false;
+			return false; // no battery
 		orientationIndex = (orientationIndex + 3) % 4;
 		reduceBattery(1);
 		return true;
@@ -51,7 +51,7 @@ public:
 	bool turnRight()
 	{
 		if (getBattery() - 1 < 0)
-			return false;
+			return false;// no battery
 		orientationIndex = (orientationIndex + 1) % 4;
 		reduceBattery(1);
 		return true;
@@ -59,12 +59,12 @@ public:
 	bool clean()
 	{
 		if (getBattery() - 5 < 0)
-			return false;
+			return false;// not battery
 		reduceBattery(5);
 		return true;
 	}
-	void changePosition(int newx, int newy) {
-		position = make_pair(newx, newy);
+	void changePosition(int newX, int newY) {
+		position = make_pair(newX, newY);
 	}
 	pair<int, int> getPosition()
 	{
@@ -79,17 +79,42 @@ public:
 		battery -= value;
 	}
 };
-
+//class that has an object of the robot and the map
+//responsible for movements on the map and keeps track of the robot's visited
+//and cleaned co-ordinates
 class RobotMoves {
 	Robot *myrobot;
-	vector<vector<string>> mymap;
-	unordered_set<pair<int, int>, boost::hash<pair<int, int>>>visited, cleaned;
-public:
+	vector<vector<string>> mymap;	
+	unordered_set<pair<int, int>, boost::hash<pair<int, int>>>visited, cleaned;//boost supports having pairs in unordered_set
+public:	
 	RobotMoves(int x, int y, char orient, int battery, vector<vector<string>>m) {
 		myrobot = new Robot(x, y, orient, battery);
 		visited.insert(this->getPosition());
 		mymap = m;
 	}
+	//copy constructor
+	RobotMoves(const RobotMoves &obj)
+	{
+		this->myrobot = new Robot(*obj.myrobot);
+		this->mymap = obj.mymap;
+		this->visited = obj.visited;
+		this->cleaned=obj.cleaned;
+	}
+	//Assignment operator
+	RobotMoves& operator=(const RobotMoves& otherRobotMoves)
+	{
+		if (this != &otherRobotMoves)
+		{
+			this->myrobot = otherRobotMoves.myrobot;
+			this->mymap = otherRobotMoves.mymap;
+			this->visited = otherRobotMoves.visited;
+			this->cleaned = otherRobotMoves.cleaned;
+		}
+		return *this;
+	}
+	~RobotMoves() {
+		delete myrobot;
+	}	
 	bool applyAdvance(pair<int, int>position_change, int used_battery)
 	{
 		pair<int, int> currentposition = myrobot->getPosition();
@@ -180,6 +205,7 @@ public:
 			return status::NO_BATTERY;
 		return advance();
 	}
+	//backoff strategy controller
 	bool backoffStrategy() {
 		status currentStatus;
 		if ((currentStatus = backoffStrategy1()) == status::BLOCKED &&
@@ -191,17 +217,18 @@ public:
 			myrobot->reduceBattery(2);
 			return false;
 		}
-		if (currentStatus == status::NO_BATTERY)
+		if (currentStatus == status::NO_BATTERY)// at anypoint the program stops if no battery
 			return false;
 		return true;
 	}
+	//first try to advance without backoff strategies 
 	bool advanceTrial()
 	{
 		status result = advance();
 		if (result == status::NO_BATTERY)
 			return false;
 		else if (result == status::BLOCKED)
-			return backoffStrategy();
+			return backoffStrategy(); //only if blocked
 		return true;
 	}
 	bool turnLeft() {
@@ -218,6 +245,7 @@ public:
 		}
 		return false;
 	}
+	//check if the co-ordinates of the new location are valid
 	bool validCoordinates(int x, int y)
 	{
 		if (x >= mymap.size() || x < 0 || y >= mymap[0].size() || y < 0 || mymap[x][y] == "null" || mymap[x][y] == "C")
@@ -233,6 +261,7 @@ public:
 	char getOrientation() {
 		return myrobot->getOrientation();
 	}
+	//write the visited co-ordinates in the json file
 	void writeVisited(my_json& outputFile)
 	{
 		json arr;
@@ -246,6 +275,7 @@ public:
 		sort(arr.begin(), arr.end());
 		outputFile["visited"] = arr;
 	}
+	//write the cleaned co-ordinates in the json file
 	void writeCleaned(my_json& outputFile)
 	{
 		json arr;
@@ -269,7 +299,7 @@ public:
 		outputFile["battery"] = this->getBattery();
 	}
 };
-RobotMoves readJson(json &commands, string fileName)
+RobotMoves *readJson(json &commands, string fileName)
 {
 	ifstream input(fileName);
 	json jComplete = json::parse(input);
@@ -279,42 +309,42 @@ RobotMoves readJson(json &commands, string fileName)
 	json jStart = jComplete["start"];
 	auto it = jStart.find("facing");
 	string facing = *it;
-	RobotMoves robotMoves(jStart["Y"], jStart["X"], facing[0], jBattery, jMap);
+	RobotMoves *robotMoves= new RobotMoves(jStart["Y"], jStart["X"], facing[0], jBattery, jMap);
 	return robotMoves;
 }
-void processCommands(json &commands, RobotMoves&robotMoves)
+void processCommands(json &commands, RobotMoves*robotMoves)
 {
 
 	for (int i = 0; i < commands.size(); i++)
 	{
 		if (commands[i] == "A")
 		{
-			if (!robotMoves.advanceTrial())
+			if (!robotMoves->advanceTrial())
 				break;
 		}
 		else if (commands[i] == "C")
 		{
-			if (!robotMoves.clean())
+			if (!robotMoves->clean())
 				break;
 		}
 		else if (commands[i] == "TL")
 		{
-			if (!robotMoves.turnLeft())
+			if (!robotMoves->turnLeft())
 				break;
 		}
 		else
 		{
-			if (!robotMoves.turnRight())
+			if (!robotMoves->turnRight())
 				break;
 		}
 	}
 
 }
-void writeJsonFile(RobotMoves&robotMoves, string fileName)
+void writeJsonFile(RobotMoves*robotMoves, string fileName)
 {
 	ofstream output(fileName);
 	my_json jsonOutput;
-	robotMoves.writeRobot(jsonOutput);
+	robotMoves->writeRobot(jsonOutput);
 	output << setw(2) << jsonOutput;
 }
 void helpInputFile()
@@ -350,7 +380,7 @@ int main(int argc, char*argv[])
 	if (checkValid(argc, argv)) // verify the validity of the input
 	{
 		json jCommands;
-		RobotMoves robotMoves = readJson(jCommands, argv[1]); //read data from json file and create RobotMoves object
+		RobotMoves *robotMoves = readJson(jCommands, argv[1]); //read data from json file and create RobotMoves object
 		processCommands(jCommands, robotMoves); //process the commands
 		writeJsonFile(robotMoves, argv[2]); //write the output in json file
 	}
