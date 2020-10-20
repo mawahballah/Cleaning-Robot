@@ -8,24 +8,13 @@ Download the files in this repository
 
 ### Prerequisites
 
-Setup Boost, a good and easy way to do it, is by following the steps in the link below
+- Setup Boost, a good and easy way to do it, is by following the steps [here](https://stackoverflow.com/questions/2629421/how-to-use-boost-in-visual-studio-2010/2655683#2655683)
 
-```
-https://stackoverflow.com/questions/2629421/how-to-use-boost-in-visual-studio-2010/2655683#2655683
-```
-Add json.hpp to your includes folder
+- Add json.hpp to your includes folder (can be found [here](https://github.com/nlohmann/json/tree/develop/single_include/nlohmann))
 
-```
-https://github.com/nlohmann/json/tree/develop/single_include/nlohmann
-```
+- Add fifo_map.hpp to your includes folder (can be found [here](https://github.com/nlohmann/fifo_map/tree/master/src))
 
-Add fifo_map.hpp to your includes folder
-
-```
-https://github.com/nlohmann/fifo_map/tree/master/src
-```
-
-In Visual Studio go to Debug -> cleaning_robot Properties -> Debugging -> Command Arguments and add the following
+- In Visual Studio go to Debug -> cleaning_robot Properties -> Debugging -> Command Arguments and add the following
 
 ```
 test1.json test1_result.json

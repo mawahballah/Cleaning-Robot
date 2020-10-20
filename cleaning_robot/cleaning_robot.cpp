@@ -1,26 +1,21 @@
-#include<unordered_map>
 #include<unordered_set>
 #include<vector>
 #include<iostream>
 #include<algorithm>
 #include<cstdlib>
-#include<set>
-#include<map>
 #include<boost/functional/hash.hpp>
 #include<boost/filesystem.hpp>
 #include<json.hpp>
 #include<fstream>
 #include<string>
-#include<string.h>
+#include <iomanip>
 #include<fifo_map.hpp>
-using namespace std;
-using namespace nlohmann;
 
 // A workaround to give to use fifo_map as map, just ignoring the 'less' compare
 // to stop the json library from sorting the objects ascendingly
 template<class K, class V, class dummy_compare, class A>
 using my_workaround_fifo_map = fifo_map<K, V, fifo_map_compare<K>, A>;
-using my_json = basic_json<my_workaround_fifo_map>;
+using my_json = nlohmann::basic_json<my_workaround_fifo_map>;
 enum status {
 	SUCCESS,
 	NO_BATTERY,
@@ -29,16 +24,16 @@ enum status {
 //the robot itself
 class Robot {
 private:	
-	pair<int, int>position;
-	vector<char> orientations; // has all orientations
+	std::pair<int, int>position;
+	std::vector<char> orientations; // has all orientations
 	int battery;
 	int orientationIndex; // not to search in the orientation vector everytime
 public:
 	Robot(int positionX, int positionY, char orient, int batterylevel)
 	{
-		position = make_pair(positionX, positionY);		
+		position = std::make_pair(positionX, positionY);
 		orientations = { 'N','E','S','W' };
-		orientationIndex = find(orientations.begin(), orientations.end(), orient) - orientations.begin();
+		orientationIndex = std::find(orientations.begin(), orientations.end(), orient) - orientations.begin();
 		battery = batterylevel;
 	}		
 	bool turnLeft() {
@@ -64,9 +59,9 @@ public:
 		return true;
 	}
 	void changePosition(int newX, int newY) {
-		position = make_pair(newX, newY);
+		position = std::make_pair(newX, newY);
 	}
-	pair<int, int> getPosition()
+	std::pair<int, int> getPosition()
 	{
 		return position;
 	}
@@ -84,10 +79,10 @@ public:
 //and cleaned co-ordinates
 class RobotMoves {
 	Robot *myrobot;
-	vector<vector<string>> mymap;	
-	unordered_set<pair<int, int>, boost::hash<pair<int, int>>>visited, cleaned;//boost supports having pairs in unordered_set
+	std::vector<std::vector<std::string>> mymap;
+	std::unordered_set<std::pair<int, int>, boost::hash<std::pair<int, int>>>visited, cleaned;//boost supports having pairs in unordered_set
 public:	
-	RobotMoves(int x, int y, char orient, int battery, vector<vector<string>>m) {
+	RobotMoves(int x, int y, char orient, int battery, std::vector<std::vector<std::string>>m) {
 		myrobot = new Robot(x, y, orient, battery);
 		visited.insert(this->getPosition());
 		mymap = m;
@@ -115,9 +110,9 @@ public:
 	~RobotMoves() {
 		delete myrobot;
 	}	
-	bool applyAdvance(pair<int, int>position_change, int used_battery)
+	bool applyAdvance(std::pair<int, int>position_change, int used_battery)
 	{
-		pair<int, int> currentposition = myrobot->getPosition();
+		std::pair<int, int> currentposition = myrobot->getPosition();
 		if (validCoordinates(currentposition.first + position_change.first, currentposition.second + position_change.second))
 		{
 			myrobot->changePosition(currentposition.first + position_change.first, currentposition.second + position_change.second);
@@ -252,7 +247,7 @@ public:
 			return false;
 		return true;
 	}
-	pair<int, int>getPosition() {
+	std::pair<int, int>getPosition() {
 		return myrobot->getPosition();
 	}
 	int getBattery() {
@@ -264,29 +259,29 @@ public:
 	//write the visited co-ordinates in the json file
 	void writeVisited(my_json& outputFile)
 	{
-		json arr;
+		nlohmann::json arr;
 		for (auto it = visited.begin(); it != visited.end(); ++it)
 		{
-			json coordinate;
+			nlohmann::json coordinate;
 			coordinate["X"] = it->second;
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
 		}
-		sort(arr.begin(), arr.end());
+		std::sort(arr.begin(), arr.end());
 		outputFile["visited"] = arr;
 	}
 	//write the cleaned co-ordinates in the json file
 	void writeCleaned(my_json& outputFile)
 	{
-		json arr;
+		nlohmann::json arr;
 		for (auto it = cleaned.begin(); it != cleaned.end(); ++it)
 		{
-			json coordinate;
+			nlohmann::json coordinate;
 			coordinate["X"] = it->second;
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
 		}
-		sort(arr.begin(), arr.end());
+		std::sort(arr.begin(), arr.end());
 		outputFile["cleaned"] = arr;
 	}
 	void writeRobot(my_json& outputFile)
@@ -295,24 +290,24 @@ public:
 		this->writeCleaned(outputFile);
 		outputFile["final"]["X"] = this->getPosition().second;
 		outputFile["final"]["Y"] = this->getPosition().first;
-		outputFile["final"]["facing"] = string(1, this->getOrientation());
+		outputFile["final"]["facing"] = std::string(1, this->getOrientation());
 		outputFile["battery"] = this->getBattery();
 	}
 };
-RobotMoves *readJson(json &commands, string fileName)
+RobotMoves *readJson(nlohmann::json &commands, std::string fileName)
 {
-	ifstream input(fileName);
-	json jComplete = json::parse(input);
-	json jMap = jComplete["map"];
+	std::ifstream input(fileName);
+	nlohmann::json jComplete = nlohmann::json::parse(input);
+	nlohmann::json jMap = jComplete["map"];
 	commands = jComplete["commands"];
-	json jBattery = jComplete["battery"];
-	json jStart = jComplete["start"];
+	nlohmann::json jBattery = jComplete["battery"];
+	nlohmann::json jStart = jComplete["start"];
 	auto it = jStart.find("facing");
-	string facing = *it;
+	std::string facing = *it;
 	RobotMoves *robotMoves= new RobotMoves(jStart["Y"], jStart["X"], facing[0], jBattery, jMap);
 	return robotMoves;
 }
-void processCommands(json &commands, RobotMoves*robotMoves)
+void processCommands(nlohmann::json &commands, RobotMoves*robotMoves)
 {
 
 	for (int i = 0; i < commands.size(); i++)
@@ -340,22 +335,22 @@ void processCommands(json &commands, RobotMoves*robotMoves)
 	}
 
 }
-void writeJsonFile(RobotMoves*robotMoves, string fileName)
+void writeJsonFile(RobotMoves*robotMoves, std::string fileName)
 {
-	ofstream output(fileName);
+	std::ofstream output(fileName);
 	my_json jsonOutput;
 	robotMoves->writeRobot(jsonOutput);
-	output << setw(2) << jsonOutput;
+	output <<  std::setw(2) << jsonOutput;
 }
 void helpInputFile()
 {
-	cout << "command line arguments:\n";
-	cout << "input file doesn't exist";
+	std::cout << "command line arguments:\n";
+	std::cout << "input file doesn't exist";
 }
 void helpExtension()
 {
-	cout << "command line arguments:\n";
-	cout << "input/output file isn't a json file";
+	std::cout << "command line arguments:\n";
+	std::cout << "input/output file isn't a json file";
 }
 bool checkValid(int argc, char*argv[])
 {
@@ -379,7 +374,7 @@ int main(int argc, char*argv[])
 {
 	if (checkValid(argc, argv)) // verify the validity of the input
 	{
-		json jCommands;
+		nlohmann::json jCommands;
 		RobotMoves *robotMoves = readJson(jCommands, argv[1]); //read data from json file and create RobotMoves object
 		processCommands(jCommands, robotMoves); //process the commands
 		writeJsonFile(robotMoves, argv[2]); //write the output in json file
