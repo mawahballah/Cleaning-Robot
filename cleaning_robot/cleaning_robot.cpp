@@ -13,7 +13,7 @@
 #include<string>
 #include<string.h>
 #include<fifo_map.hpp>
-using namespace std;
+
 using namespace nlohmann;
 
 // A workaround to give to use fifo_map as map, just ignoring the 'less' compare
@@ -29,16 +29,16 @@ enum status {
 //the robot itself
 class Robot {
 private:	
-	pair<int, int>position;
-	vector<char> orientations; // has all orientations
+	std::pair<int, int>position;
+	std::vector<char> orientations; // has all orientations
 	int battery;
 	int orientationIndex; // not to search in the orientation vector everytime
 public:
 	Robot(int positionX, int positionY, char orient, int batterylevel)
 	{
-		position = make_pair(positionX, positionY);		
+		position = std::make_pair(positionX, positionY);
 		orientations = { 'N','E','S','W' };
-		orientationIndex = find(orientations.begin(), orientations.end(), orient) - orientations.begin();
+		orientationIndex = std::find(orientations.begin(), orientations.end(), orient) - orientations.begin();
 		battery = batterylevel;
 	}		
 	bool turnLeft() {
@@ -64,9 +64,9 @@ public:
 		return true;
 	}
 	void changePosition(int newX, int newY) {
-		position = make_pair(newX, newY);
+		position = std::make_pair(newX, newY);
 	}
-	pair<int, int> getPosition()
+	std::pair<int, int> getPosition()
 	{
 		return position;
 	}
@@ -84,10 +84,10 @@ public:
 //and cleaned co-ordinates
 class RobotMoves {
 	Robot *myrobot;
-	vector<vector<string>> mymap;	
-	unordered_set<pair<int, int>, boost::hash<pair<int, int>>>visited, cleaned;//boost supports having pairs in unordered_set
+	std::vector<std::vector<std::string>> mymap;
+	std::unordered_set<std::pair<int, int>, boost::hash<std::pair<int, int>>>visited, cleaned;//boost supports having pairs in unordered_set
 public:	
-	RobotMoves(int x, int y, char orient, int battery, vector<vector<string>>m) {
+	RobotMoves(int x, int y, char orient, int battery, std::vector<std::vector<std::string>>m) {
 		myrobot = new Robot(x, y, orient, battery);
 		visited.insert(this->getPosition());
 		mymap = m;
@@ -115,9 +115,9 @@ public:
 	~RobotMoves() {
 		delete myrobot;
 	}	
-	bool applyAdvance(pair<int, int>position_change, int used_battery)
+	bool applyAdvance(std::pair<int, int>position_change, int used_battery)
 	{
-		pair<int, int> currentposition = myrobot->getPosition();
+		std::pair<int, int> currentposition = myrobot->getPosition();
 		if (validCoordinates(currentposition.first + position_change.first, currentposition.second + position_change.second))
 		{
 			myrobot->changePosition(currentposition.first + position_change.first, currentposition.second + position_change.second);
@@ -252,7 +252,7 @@ public:
 			return false;
 		return true;
 	}
-	pair<int, int>getPosition() {
+	std::pair<int, int>getPosition() {
 		return myrobot->getPosition();
 	}
 	int getBattery() {
@@ -272,7 +272,7 @@ public:
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
 		}
-		sort(arr.begin(), arr.end());
+		std::sort(arr.begin(), arr.end());
 		outputFile["visited"] = arr;
 	}
 	//write the cleaned co-ordinates in the json file
@@ -286,7 +286,7 @@ public:
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
 		}
-		sort(arr.begin(), arr.end());
+		std::sort(arr.begin(), arr.end());
 		outputFile["cleaned"] = arr;
 	}
 	void writeRobot(my_json& outputFile)
@@ -295,11 +295,11 @@ public:
 		this->writeCleaned(outputFile);
 		outputFile["final"]["X"] = this->getPosition().second;
 		outputFile["final"]["Y"] = this->getPosition().first;
-		outputFile["final"]["facing"] = string(1, this->getOrientation());
+		outputFile["final"]["facing"] = std::string(1, this->getOrientation());
 		outputFile["battery"] = this->getBattery();
 	}
 };
-RobotMoves *readJson(json &commands, string fileName)
+RobotMoves *readJson(json &commands, std::string fileName)
 {
 	ifstream input(fileName);
 	json jComplete = json::parse(input);
