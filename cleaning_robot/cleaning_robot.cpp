@@ -1,26 +1,21 @@
-#include<unordered_map>
 #include<unordered_set>
 #include<vector>
 #include<iostream>
 #include<algorithm>
 #include<cstdlib>
-#include<set>
-#include<map>
 #include<boost/functional/hash.hpp>
 #include<boost/filesystem.hpp>
 #include<json.hpp>
 #include<fstream>
 #include<string>
-#include<string.h>
+#include <iomanip>
 #include<fifo_map.hpp>
-
-using namespace nlohmann;
 
 // A workaround to give to use fifo_map as map, just ignoring the 'less' compare
 // to stop the json library from sorting the objects ascendingly
 template<class K, class V, class dummy_compare, class A>
 using my_workaround_fifo_map = fifo_map<K, V, fifo_map_compare<K>, A>;
-using my_json = basic_json<my_workaround_fifo_map>;
+using my_json = nlohmann::basic_json<my_workaround_fifo_map>;
 enum status {
 	SUCCESS,
 	NO_BATTERY,
@@ -264,10 +259,10 @@ public:
 	//write the visited co-ordinates in the json file
 	void writeVisited(my_json& outputFile)
 	{
-		json arr;
+		nlohmann::json arr;
 		for (auto it = visited.begin(); it != visited.end(); ++it)
 		{
-			json coordinate;
+			nlohmann::json coordinate;
 			coordinate["X"] = it->second;
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
@@ -278,10 +273,10 @@ public:
 	//write the cleaned co-ordinates in the json file
 	void writeCleaned(my_json& outputFile)
 	{
-		json arr;
+		nlohmann::json arr;
 		for (auto it = cleaned.begin(); it != cleaned.end(); ++it)
 		{
-			json coordinate;
+			nlohmann::json coordinate;
 			coordinate["X"] = it->second;
 			coordinate["Y"] = it->first;
 			arr.push_back(coordinate);
@@ -299,20 +294,20 @@ public:
 		outputFile["battery"] = this->getBattery();
 	}
 };
-RobotMoves *readJson(json &commands, std::string fileName)
+RobotMoves *readJson(nlohmann::json &commands, std::string fileName)
 {
-	ifstream input(fileName);
-	json jComplete = json::parse(input);
-	json jMap = jComplete["map"];
+	std::ifstream input(fileName);
+	nlohmann::json jComplete = nlohmann::json::parse(input);
+	nlohmann::json jMap = jComplete["map"];
 	commands = jComplete["commands"];
-	json jBattery = jComplete["battery"];
-	json jStart = jComplete["start"];
+	nlohmann::json jBattery = jComplete["battery"];
+	nlohmann::json jStart = jComplete["start"];
 	auto it = jStart.find("facing");
-	string facing = *it;
+	std::string facing = *it;
 	RobotMoves *robotMoves= new RobotMoves(jStart["Y"], jStart["X"], facing[0], jBattery, jMap);
 	return robotMoves;
 }
-void processCommands(json &commands, RobotMoves*robotMoves)
+void processCommands(nlohmann::json &commands, RobotMoves*robotMoves)
 {
 
 	for (int i = 0; i < commands.size(); i++)
@@ -340,22 +335,22 @@ void processCommands(json &commands, RobotMoves*robotMoves)
 	}
 
 }
-void writeJsonFile(RobotMoves*robotMoves, string fileName)
+void writeJsonFile(RobotMoves*robotMoves, std::string fileName)
 {
-	ofstream output(fileName);
+	std::ofstream output(fileName);
 	my_json jsonOutput;
 	robotMoves->writeRobot(jsonOutput);
-	output << setw(2) << jsonOutput;
+	output <<  std::setw(2) << jsonOutput;
 }
 void helpInputFile()
 {
-	cout << "command line arguments:\n";
-	cout << "input file doesn't exist";
+	std::cout << "command line arguments:\n";
+	std::cout << "input file doesn't exist";
 }
 void helpExtension()
 {
-	cout << "command line arguments:\n";
-	cout << "input/output file isn't a json file";
+	std::cout << "command line arguments:\n";
+	std::cout << "input/output file isn't a json file";
 }
 bool checkValid(int argc, char*argv[])
 {
@@ -379,7 +374,7 @@ int main(int argc, char*argv[])
 {
 	if (checkValid(argc, argv)) // verify the validity of the input
 	{
-		json jCommands;
+		nlohmann::json jCommands;
 		RobotMoves *robotMoves = readJson(jCommands, argv[1]); //read data from json file and create RobotMoves object
 		processCommands(jCommands, robotMoves); //process the commands
 		writeJsonFile(robotMoves, argv[2]); //write the output in json file
